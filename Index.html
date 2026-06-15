@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Tanque</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --card: #212435; --border: #2e3248;
+    --accent: #f5a623; --text: #eef0f8; --muted: #7a7e99;
+    --danger: #ff6b6b; --green: #66d9a0;
+    --gasolina: #f5a623; --etanol: #66d9a0; --diesel: #4fc3f7; --gnv: #c084fc;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; max-width: 430px; margin: 0 auto; }
+
+  /* HEADER */
+  .header { padding: 52px 20px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+  .header .total-label { font-size: 12px; color: var(--muted); text-align: right; }
+  .header .total-val { display: block; font-size: 15px; color: var(--text); font-weight: 600; }
+
+  /* CAR SELECTOR BAR */
+  .car-bar { padding: 0 20px 14px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+  .car-bar::-webkit-scrollbar { display: none; }
+  .car-chip {
+    flex-shrink: 0; background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 50px; padding: 7px 14px; font-size: 13px; font-weight: 600;
+    color: var(--muted); cursor: pointer; white-space: nowrap; transition: all .18s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .car-chip.active { background: var(--accent); border-color: var(--accent); color: #0f1117; }
+  .car-chip .chip-icon { font-size: 15px; }
+  .car-chip-add {
+    flex-shrink: 0; background: transparent; border: 1.5px dashed var(--border);
+    border-radius: 50px; padding: 7px 14px; font-size: 13px; font-weight: 600;
+    color: var(--muted); cursor: pointer; white-space: nowrap;
+  }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; padding: 0 20px 16px; }
+  .tab { flex: 1; background: var(--surface); border: 1.5px solid var(--border); color: var(--muted); font-size: 13px; font-weight: 600; padding: 8px 0; border-radius: 10px; cursor: pointer; transition: all .18s; }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #0f1117; }
+
+  /* SECTIONS */
+  .section { display: none; padding: 0 20px 100px; }
+  .section.active { display: block; }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 100; align-items: flex-end; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: 24px 24px 0 0; padding: 28px 20px 40px; width: 100%; max-width: 430px; margin: 0 auto; border-top: 1.5px solid var(--border); }
+  .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+  .modal .field { margin-bottom: 14px; }
+  .modal .field label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; display: block; margin-bottom: 5px; }
+  .modal .field input { width: 100%; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; color: var(--text); font-size: 16px; font-weight: 600; padding: 12px 14px; outline: none; transition: border-color .18s; }
+  .modal .field input:focus { border-color: var(--accent); }
+  .modal .field input::placeholder { color: var(--border); font-weight: 400; }
+  .icon-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .icon-opt { width: 44px; height: 44px; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .18s; }
+  .icon-opt.selected { border-color: var(--accent); background: rgba(245,166,35,.15); }
+  .modal-btns { display: flex; gap: 8px; }
+  .btn-cancel { flex: 1; background: var(--card); border: 1.5px solid var(--border); color: var(--muted); border-radius: 12px; font-size: 15px; font-weight: 700; padding: 14px; cursor: pointer; }
+  .btn-save { flex: 2; background: var(--accent); border: none; color: #0f1117; border-radius: 12px; font-size: 15px; font-weight: 700; padding: 14px; cursor: pointer; }
+
+  /* CAR LIST IN MODAL */
+  .car-list-item { display: flex; align-items: center; justify-content: space-between; background: var(--card); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+  .car-list-left { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+  .car-list-icon { font-size: 20px; }
+  .car-list-del { background: none; border: none; color: var(--danger); font-size: 16px; cursor: pointer; padding: 4px; }
+
+  /* FORM */
+  .form-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 18px; padding: 20px; margin-bottom: 16px; }
+  .form-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+
+  /* CAR SELECTOR IN FORM */
+  .car-select-row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-bottom: 16px; padding-bottom: 2px; }
+  .car-select-row::-webkit-scrollbar { display: none; }
+  .car-sel-btn { flex-shrink: 0; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 12px; cursor: pointer; text-align: center; transition: all .18s; min-width: 64px; }
+  .car-sel-btn .cs-icon { font-size: 20px; display: block; }
+  .car-sel-btn .cs-name { font-size: 10px; color: var(--muted); font-weight: 600; margin-top: 3px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 64px; }
+  .car-sel-btn.selected { border-color: var(--accent); background: rgba(245,166,35,.15); }
+  .car-sel-btn.selected .cs-name { color: var(--accent); }
+  .no-cars-msg { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .no-cars-msg a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+  .fuel-selector { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px; }
+  .fuel-btn { background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 4px; cursor: pointer; text-align: center; transition: all .18s; }
+  .fuel-btn .fuel-icon { font-size: 18px; display: block; }
+  .fuel-btn .fuel-label { font-size: 10px; color: var(--muted); font-weight: 600; margin-top: 3px; display: block; }
+  .fuel-btn.selected-gasolina { border-color: var(--gasolina); background: rgba(245,166,35,.15); }
+  .fuel-btn.selected-gasolina .fuel-label { color: var(--gasolina); }
+  .fuel-btn.selected-etanol { border-color: var(--etanol); background: rgba(102,217,160,.15); }
+  .fuel-btn.selected-etanol .fuel-label { color: var(--etanol); }
+  .fuel-btn.selected-diesel { border-color: var(--diesel); background: rgba(79,195,247,.15); }
+  .fuel-btn.selected-diesel .fuel-label { color: var(--diesel); }
+  .fuel-btn.selected-gnv { border-color: var(--gnv); background: rgba(192,132,252,.15); }
+  .fuel-btn.selected-gnv .fuel-label { color: var(--gnv); }
+
+  .fields { display: grid; gap: 10px; }
+  .field label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; display: block; margin-bottom: 5px; }
+  .field input { width: 100%; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; color: var(--text); font-size: 18px; font-weight: 600; padding: 12px 14px; outline: none; transition: border-color .18s; -webkit-appearance: none; }
+  .field input:focus { border-color: var(--accent); }
+  .field input::placeholder { color: var(--border); font-weight: 400; font-size: 15px; }
+  .field .unit { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .preview-inline { background: var(--card); border: 1.5px solid var(--border); border-radius: 14px; padding: 14px; display: none; gap: 8px; margin-bottom: 16px; }
+  .preview-inline.visible { display: flex; }
+  .preview-stat { flex: 1; text-align: center; }
+  .preview-stat .val { font-size: 20px; font-weight: 700; color: var(--accent); }
+  .preview-stat .lbl { font-size: 10px; color: var(--muted); margin-top: 2px; font-weight: 600; }
+  .divider-v { width: 1px; background: var(--border); }
+
+  .btn-add { width: 100%; background: var(--accent); color: #0f1117; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; padding: 16px; cursor: pointer; letter-spacing: .2px; transition: opacity .18s; }
+  .btn-add:active { opacity: .8; }
+
+  /* RESUMO */
+  .filter-bar { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; scrollbar-width: none; }
+  .filter-bar::-webkit-scrollbar { display: none; }
+  .filter-chip { flex-shrink: 0; background: var(--surface); border: 1.5px solid var(--border); border-radius: 50px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all .18s; }
+  .filter-chip.active { background: var(--accent); border-color: var(--accent); color: #0f1117; }
+
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 16px; }
+  .stat-card.wide { grid-column: 1 / -1; }
+  .stat-card .s-label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+  .stat-card .s-val { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+  .stat-card .s-val.accent { color: var(--accent); }
+  .stat-card .s-val.green { color: var(--green); }
+  .stat-card .s-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .breakdown-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .fuel-row { background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+  .fuel-row .fr-left { display: flex; align-items: center; gap: 10px; }
+  .fuel-row .fr-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .fuel-row .fr-name { font-size: 14px; font-weight: 700; }
+  .fuel-row .fr-count { font-size: 11px; color: var(--muted); }
+  .fuel-row .fr-stats { text-align: right; }
+  .fuel-row .fr-kml { font-size: 18px; font-weight: 700; }
+  .fuel-row .fr-pkm { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  /* HISTORICO */
+  .hist-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .hist-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .btn-clear { background: none; border: none; color: var(--danger); font-size: 12px; font-weight: 700; cursor: pointer; padding: 4px 8px; }
+  .hist-item { background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; }
+  .hist-fuel-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .hist-info { flex: 1; min-width: 0; }
+  .hist-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .hist-fuel-name { font-size: 14px; font-weight: 700; }
+  .hist-car-tag { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .hist-date { font-size: 11px; color: var(--muted); }
+  .hist-stats { display: flex; gap: 14px; margin-top: 5px; flex-wrap: wrap; }
+  .hist-stat .hv { font-size: 15px; font-weight: 700; }
+  .hist-stat .hl { font-size: 10px; color: var(--muted); font-weight: 600; }
+  .hist-stat .hv.accent { color: var(--accent); }
+  .hist-stat .hv.green { color: var(--green); }
+  .hist-delete { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 4px; flex-shrink: 0; }
+
+  .empty-state { text-align: center; padding: 48px 0; color: var(--muted); }
+  .empty-state .emoji { font-size: 36px; display: block; margin-bottom: 10px; }
+  .empty-state p { font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⛽ Tanque</h1>
+  <div class="total-label">total gasto<span class="total-val" id="totalGasto">R$ 0,00</span></div>
+</div>
+
+<!-- CAR BAR -->
+<div class="car-bar" id="car-bar">
+  <div class="car-chip active" data-car="all" onclick="selectCarFilter('all', this)">
+    <span class="chip-icon">🚗</span> Todos
+  </div>
+  <button class="car-chip-add" onclick="openCarModal()">+ Carro</button>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('registrar')">Registrar</button>
+  <button class="tab" onclick="switchTab('resumo')">Resumo</button>
+  <button class="tab" onclick="switchTab('historico')">Histórico</button>
+</div>
+
+<!-- REGISTRAR -->
+<div class="section active" id="sec-registrar">
+  <div class="form-card">
+    <div class="form-title">Veículo</div>
+    <div id="car-select-row" class="car-select-row"></div>
+    <div id="no-cars-msg" class="no-cars-msg" style="display:none">
+      Nenhum carro cadastrado. <a onclick="openCarModal()">Adicionar agora</a>
+    </div>
+
+    <div class="form-title" style="margin-top:4px">Tipo de Combustível</div>
+    <div class="fuel-selector">
+      <div class="fuel-btn selected-gasolina" onclick="selectFuel('gasolina', this)"><span class="fuel-icon">🟡</span><span class="fuel-label">Gasolina</span></div>
+      <div class="fuel-btn" onclick="selectFuel('etanol', this)"><span class="fuel-icon">🟢</span><span class="fuel-label">Etanol</span></div>
+      <div class="fuel-btn" onclick="selectFuel('diesel', this)"><span class="fuel-icon">🔵</span><span class="fuel-label">Diesel</span></div>
+      <div class="fuel-btn" onclick="selectFuel('gnv', this)"><span class="fuel-icon">🟣</span><span class="fuel-label">GNV</span></div>
+    </div>
+
+    <div class="fields">
+      <div class="field">
+        <label>Litros abastecidos</label>
+        <input type="number" id="litros" inputmode="decimal" placeholder="ex: 40,0" oninput="calcPreview()">
+        <div class="unit">litros (L)</div>
+      </div>
+      <div class="field">
+        <label>Preço por litro</label>
+        <input type="number" id="preco" inputmode="decimal" placeholder="ex: 6,49" oninput="calcPreview()">
+        <div class="unit">R$ por litro</div>
+      </div>
+      <div class="field">
+        <label>KM rodados desde último abast.</label>
+        <input type="number" id="km" inputmode="decimal" placeholder="ex: 450" oninput="calcPreview()">
+        <div class="unit">quilômetros</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-inline" id="preview">
+    <div class="preview-stat"><div class="val" id="prev-kml">—</div><div class="lbl">km/L</div></div>
+    <div class="divider-v"></div>
+    <div class="preview-stat"><div class="val" id="prev-pkm">—</div><div class="lbl">R$/km</div></div>
+    <div class="divider-v"></div>
+    <div class="preview-stat"><div class="val" id="prev-total">—</div><div class="lbl">Total pago</div></div>
+  </div>
+
+  <button class="btn-add" onclick="addRecord()">+ Registrar abastecimento</button>
+</div>
+
+<!-- RESUMO -->
+<div class="section" id="sec-resumo">
+  <div class="filter-bar" id="resumo-filter"></div>
+  <div class="summary-grid">
+    <div class="stat-card"><div class="s-label">Eficiência média</div><div class="s-val accent" id="r-kml">—</div><div class="s-sub">km por litro</div></div>
+    <div class="stat-card"><div class="s-label">Custo médio</div><div class="s-val green" id="r-pkm">—</div><div class="s-sub">R$ por km</div></div>
+    <div class="stat-card wide"><div class="s-label">Total gasto em combustível</div><div class="s-val accent" id="r-total">—</div><div class="s-sub" id="r-abast">0 abastecimentos</div></div>
+    <div class="stat-card wide"><div class="s-label">KM totais registrados</div><div class="s-val" id="r-km">—</div><div class="s-sub">quilômetros</div></div>
+  </div>
+  <div class="breakdown-title">Por Combustível</div>
+  <div id="breakdown-list"></div>
+</div>
+
+<!-- HISTÓRICO -->
+<div class="section" id="sec-historico">
+  <div class="hist-header">
+    <div class="hist-title">Abastecimentos</div>
+    <div style="display:flex;gap:8px;align-items:center"><button class="btn-clear" style="color:var(--accent)" onclick="exportCSV()">⬇ CSV</button><button class="btn-clear" onclick="clearAll()">Limpar</button></div>
+  </div>
+  <div class="filter-bar" id="hist-filter"></div>
+  <div id="hist-list"></div>
+</div>
+
+<!-- MODAL ADICIONAR CARRO -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <h2>🚗 Meus Carros</h2>
+    <div id="modal-car-list"></div>
+    <div class="field">
+      <label>Nome do carro</label>
+      <input type="text" id="car-name-input" placeholder="ex: Civic, Gol, Mobi…" maxlength="20">
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Ícone</div>
+    <div class="icon-picker" id="icon-picker"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Fechar</button>
+      <button class="btn-save" onclick="addCar()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const FUEL_COLORS = { gasolina: '#f5a623', etanol: '#66d9a0', diesel: '#4fc3f7', gnv: '#c084fc' };
+const FUEL_ICONS  = { gasolina: '🟡', etanol: '🟢', diesel: '🔵', gnv: '🟣' };
+const FUEL_LABELS = { gasolina: 'Gasolina', etanol: 'Etanol', diesel: 'Diesel', gnv: 'GNV' };
+const CAR_ICONS   = ['🚗','🚙','🚕','🏎','🚐','🚌','🛻','🚓','🚑','🚒','🏍','🛵'];
+
+let selectedFuel = 'gasolina';
+let selectedCarId = null;   // for form
+let filterCarId = 'all';    // for resumo/historico filter
+let selectedIcon = '🚗';
+let records = JSON.parse(localStorage.getItem('tanque_records') || '[]');
+let cars = JSON.parse(localStorage.getItem('tanque_cars') || '[]');
+
+// ── INIT ──────────────────────────────────────────────────────────
+function init() {
+  renderIconPicker();
+  renderCarBar();
+  renderCarSelectRow();
+  updateHeader();
+}
+
+// ── CAR BAR (top) ─────────────────────────────────────────────────
+function renderCarBar() {
+  const bar = document.getElementById('car-bar');
+  // keep "Todos" chip and "+ Carro" btn, rebuild car chips in between
+  bar.innerHTML = `<div class="car-chip ${filterCarId==='all'?'active':''}" data-car="all" onclick="selectCarFilter('all',this)"><span class="chip-icon">🚗</span> Todos</div>`;
+  cars.forEach(c => {
+    const a = filterCarId === c.id ? 'active' : '';
+    bar.innerHTML += `<div class="car-chip ${a}" data-car="${c.id}" onclick="selectCarFilter('${c.id}',this)">${c.icon} ${c.name}</div>`;
+  });
+  bar.innerHTML += `<button class="car-chip-add" onclick="openCarModal()">+ Carro</button>`;
+}
+
+function selectCarFilter(id, el) {
+  filterCarId = id;
+  renderCarBar();
+  // refresh active tab
+  const activeTab = document.querySelector('.tab.active');
+  // no-op; tab content re-renders on switchTab; here update if already open
+  renderResumo();
+  renderHistorico();
+}
+
+// ── CAR SELECT ROW (in form) ───────────────────────────────────────
+function renderCarSelectRow() {
+  const row = document.getElementById('car-select-row');
+  const msg = document.getElementById('no-cars-msg');
+  if (cars.length === 0) { row.style.display = 'none'; msg.style.display = 'block'; return; }
+  msg.style.display = 'none'; row.style.display = 'flex';
+  // auto-select first car if none selected or selected car was deleted
+  if (!selectedCarId || !cars.find(c => c.id === selectedCarId)) selectedCarId = cars[0].id;
+  row.innerHTML = cars.map(c => `
+    <div class="car-sel-btn ${selectedCarId===c.id?'selected':''}" onclick="selectFormCar('${c.id}')">
+      <span class="cs-icon">${c.icon}</span>
+      <span class="cs-name">${c.name}</span>
+    </div>`).join('');
+}
+
+function selectFormCar(id) {
+  selectedCarId = id;
+  renderCarSelectRow();
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────
+function renderIconPicker() {
+  document.getElementById('icon-picker').innerHTML = CAR_ICONS.map(i =>
+    `<div class="icon-opt ${i===selectedIcon?'selected':''}" onclick="pickIcon('${i}',this)">${i}</div>`
+  ).join('');
+}
+
+function pickIcon(icon, el) {
+  selectedIcon = icon;
+  document.querySelectorAll('.icon-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function renderModalCarList(confirmId) {
+  const el = document.getElementById('modal-car-list');
+  if (cars.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = cars.map(c => {
+    if (confirmId === c.id) {
+      return `<div class="car-list-item">
+        <div class="car-list-left"><span class="car-list-icon">${c.icon}</span>${c.name}</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:11px;color:var(--muted)">Excluir?</span>
+          <button style="background:var(--danger);border:none;color:#fff;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer" onclick="deleteCar('${c.id}')">Sim</button>
+          <button style="background:var(--card);border:1.5px solid var(--border);color:var(--muted);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer" onclick="renderModalCarList()">Não</button>
+        </div>
+      </div>`;
+    }
+    return `<div class="car-list-item">
+      <div class="car-list-left"><span class="car-list-icon">${c.icon}</span>${c.name}</div>
+      <button class="car-list-del" onclick="renderModalCarList('${c.id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function openCarModal() { renderModalCarList(); document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModalOutside(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
+
+function addCar() {
+  const name = document.getElementById('car-name-input').value.trim();
+  if (!name) { document.getElementById('car-name-input').focus(); return; }
+  const car = { id: 'car_' + Date.now(), name, icon: selectedIcon };
+  cars.push(car);
+  saveCars();
+  document.getElementById('car-name-input').value = '';
+  renderModalCarList();
+  renderCarBar();
+  renderCarSelectRow();
+}
+
+function deleteCar(id) {
+  cars = cars.filter(c => c.id !== id);
+  if (selectedCarId === id) selectedCarId = cars.length ? cars[0].id : null;
+  if (filterCarId === id) filterCarId = 'all';
+  saveCars();
+  renderModalCarList();
+  renderCarBar();
+  renderCarSelectRow();
+  renderResumo();
+  renderHistorico();
+}
+
+// ── FUEL ──────────────────────────────────────────────────────────
+function selectFuel(type, el) {
+  document.querySelectorAll('.fuel-btn').forEach(b => b.className = 'fuel-btn');
+  el.classList.add('selected-' + type);
+  selectedFuel = type;
+}
+
+// ── PREVIEW ───────────────────────────────────────────────────────
+function calcPreview() {
+  const L = parseFloat(document.getElementById('litros').value);
+  const P = parseFloat(document.getElementById('preco').value);
+  const K = parseFloat(document.getElementById('km').value);
+  const el = document.getElementById('preview');
+  if (L > 0 && P > 0 && K > 0) {
+    el.classList.add('visible');
+    document.getElementById('prev-kml').textContent = (K/L).toFixed(2);
+    document.getElementById('prev-pkm').textContent = 'R$'+(P*L/K).toFixed(2);
+    document.getElementById('prev-total').textContent = 'R$'+(P*L).toFixed(2);
+  } else { el.classList.remove('visible'); }
+}
+
+// ── ADD RECORD ────────────────────────────────────────────────────
+function addRecord() {
+  const L = parseFloat(document.getElementById('litros').value);
+  const P = parseFloat(document.getElementById('preco').value);
+  const K = parseFloat(document.getElementById('km').value);
+  if (!L||!P||!K||L<=0||P<=0||K<=0) { alert('Preencha todos os campos com valores válidos.'); return; }
+  const car = cars.find(c => c.id === selectedCarId);
+  const rec = {
+    id: Date.now(), fuel: selectedFuel,
+    carId: car ? car.id : null, carName: car ? car.name : null, carIcon: car ? car.icon : null,
+    litros: L, preco: P, km: K, total: L*P, kml: K/L, pkm: (P*L)/K,
+    date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+  };
+  records.unshift(rec);
+  save();
+  ['litros','preco','km'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('preview').classList.remove('visible');
+  updateHeader();
+  showToast('Abastecimento registrado ✓');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────
+function filteredRecords() {
+  if (filterCarId === 'all') return records;
+  return records.filter(r => r.carId === filterCarId);
+}
+
+function updateHeader() {
+  const total = records.reduce((a,r) => a+r.total, 0);
+  document.getElementById('totalGasto').textContent = 'R$ ' + total.toFixed(2).replace('.',',');
+}
+
+function save() { localStorage.setItem('tanque_records', JSON.stringify(records)); }
+function saveCars() { localStorage.setItem('tanque_cars', JSON.stringify(cars)); }
+
+function deleteRecord(id) {
+  records = records.filter(r => r.id !== id);
+  save(); renderHistorico(); renderResumo(); updateHeader();
+}
+
+function clearAll() {
+  if (!confirm('Apagar todos os registros?')) return;
+  records = []; save(); renderHistorico(); renderResumo(); updateHeader();
+}
+
+// ── FILTER CHIPS ──────────────────────────────────────────────────
+function renderFilterChips(containerId) {
+  const el = document.getElementById(containerId);
+  if (cars.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="filter-chip ${filterCarId==='all'?'active':''}" onclick="setFilter('all','${containerId}')">Todos</div>` +
+    cars.map(c => `<div class="filter-chip ${filterCarId===c.id?'active':''}" onclick="setFilter('${c.id}','${containerId}')">${c.icon} ${c.name}</div>`).join('');
+}
+
+function setFilter(id, containerId) {
+  filterCarId = id;
+  renderCarBar();
+  renderFilterChips('resumo-filter');
+  renderFilterChips('hist-filter');
+  renderResumo();
+  renderHistorico();
+}
+
+// ── RESUMO ────────────────────────────────────────────────────────
+function renderResumo() {
+  renderFilterChips('resumo-filter');
+  const recs = filteredRecords();
+  if (recs.length === 0) {
+    document.getElementById('r-kml').textContent = '—';
+    document.getElementById('r-pkm').textContent = '—';
+    document.getElementById('r-total').textContent = 'R$ 0,00';
+    document.getElementById('r-abast').textContent = '0 abastecimentos';
+    document.getElementById('r-km').textContent = '—';
+    document.getElementById('breakdown-list').innerHTML = '';
+    return;
+  }
+  const totalL = recs.reduce((a,r) => a+r.litros, 0);
+  const totalKm = recs.reduce((a,r) => a+r.km, 0);
+  const totalGasto = recs.reduce((a,r) => a+r.total, 0);
+  document.getElementById('r-kml').textContent = (totalKm/totalL).toFixed(2);
+  document.getElementById('r-pkm').textContent = 'R$ '+(totalGasto/totalKm).toFixed(3);
+  document.getElementById('r-total').textContent = 'R$ '+totalGasto.toFixed(2).replace('.',',');
+  document.getElementById('r-abast').textContent = recs.length+' abastecimento'+(recs.length>1?'s':'');
+  document.getElementById('r-km').textContent = totalKm.toFixed(0)+' km';
+
+  const fuels = {};
+  recs.forEach(r => {
+    if (!fuels[r.fuel]) fuels[r.fuel] = { litros:0, km:0, total:0, count:0 };
+    fuels[r.fuel].litros += r.litros; fuels[r.fuel].km += r.km;
+    fuels[r.fuel].total += r.total;   fuels[r.fuel].count++;
+  });
+  document.getElementById('breakdown-list').innerHTML = Object.entries(fuels).map(([f,d]) => `
+    <div class="fuel-row">
+      <div class="fr-left">
+        <div class="fr-dot" style="background:${FUEL_COLORS[f]}"></div>
+        <div><div class="fr-name">${FUEL_LABELS[f]}</div><div class="fr-count">${d.count} abast. · ${d.litros.toFixed(1)} L</div></div>
+      </div>
+      <div class="fr-stats">
+        <div class="fr-kml" style="color:${FUEL_COLORS[f]}">${(d.km/d.litros).toFixed(2)} km/L</div>
+        <div class="fr-pkm">R$ ${(d.total/d.km).toFixed(3)}/km</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── HISTÓRICO ─────────────────────────────────────────────────────
+function renderHistorico() {
+  renderFilterChips('hist-filter');
+  const el = document.getElementById('hist-list');
+  const recs = filteredRecords();
+  if (recs.length === 0) {
+    el.innerHTML = `<div class="empty-state"><span class="emoji">⛽</span><p>Nenhum abastecimento registrado.</p></div>`;
+    return;
+  }
+  el.innerHTML = recs.map(r => `
+    <div class="hist-item">
+      <div class="hist-fuel-dot" style="background:${FUEL_COLORS[r.fuel]}"></div>
+      <div class="hist-info">
+        <div class="hist-top">
+          <span class="hist-fuel-name">${FUEL_ICONS[r.fuel]} ${FUEL_LABELS[r.fuel]}</span>
+          <span class="hist-date">${r.date}</span>
+        </div>
+        ${r.carName ? `<div class="hist-car-tag">${r.carIcon} ${r.carName}</div>` : ''}
+        <div class="hist-stats">
+          <div class="hist-stat"><div class="hv accent">${r.kml.toFixed(2)}</div><div class="hl">km/L</div></div>
+          <div class="hist-stat"><div class="hv green">R$${r.pkm.toFixed(3)}</div><div class="hl">/km</div></div>
+          <div class="hist-stat"><div class="hv">${r.litros.toFixed(1)} L</div><div class="hl">abastecido</div></div>
+          <div class="hist-stat"><div class="hv">R$${r.total.toFixed(2)}</div><div class="hl">total</div></div>
+        </div>
+      </div>
+      <button class="hist-delete" onclick="deleteRecord(${r.id})">✕</button>
+    </div>`).join('');
+}
+
+// ── TABS ──────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  const tabs = ['registrar','resumo','historico'];
+  document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
+  document.getElementById('sec-'+tab).classList.add('active');
+  if (tab==='resumo') renderResumo();
+  if (tab==='historico') renderHistorico();
+}
+
+// ── EXPORT CSV ────────────────────────────────────────────────────
+function exportCSV() {
+  const recs = filteredRecords();
+  if (recs.length === 0) { showToast('Nenhum registro para exportar'); return; }
+  const header = ['Data','Carro','Combustivel','Litros','Preco_por_L','KM_rodados','Total_R$','km_por_L','R$_por_km'];
+  const rows = recs.map(r => [
+    r.date,
+    r.carName || '',
+    FUEL_LABELS[r.fuel],
+    r.litros.toFixed(2),
+    r.preco.toFixed(3),
+    r.km.toFixed(1),
+    r.total.toFixed(2),
+    r.kml.toFixed(3),
+    r.pkm.toFixed(4)
+  ]);
+  const csv = [header, ...rows].map(row => row.join(';')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const carLabel = filterCarId === 'all' ? 'todos' : (cars.find(c=>c.id===filterCarId)?.name || 'carro');
+  a.download = `tanque_${carLabel}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV exportado ✓');
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  Object.assign(t.style, { position:'fixed', bottom:'30px', left:'50%', transform:'translateX(-50%)', background:'#66d9a0', color:'#0f1117', padding:'12px 24px', borderRadius:'50px', fontWeight:'700', fontSize:'14px', zIndex:9999, opacity:'0', transition:'opacity .2s' });
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.style.opacity = '1');
+  setTimeout(() => { t.style.opacity='0'; setTimeout(() => t.remove(), 300); }, 2000);
+}
+
+init();
+</script>
+</body>
+</html>
